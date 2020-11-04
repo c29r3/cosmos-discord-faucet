@@ -1,0 +1,18 @@
+**List of available commands:**
+1. Request coins through the faucet
+`$request sif1lj3rsayj4xtrhp2e3elv4nf7lazxty272zqegr`
+
+Transaction status explanation:
+✅ - mean bot send transaction to your address
+
+2. Displays the current status of the node where faucet is running
+`$faucet_status`
+
+3. Show tap address
+`$faucet_address` or `$tap_address`
+
+4. Show transaction information for a specific transaction ID
+`$tx_info 009CEA347EAFD795E8B10088D18156BC15F24362416BEEF1073BFDFD936E19B0`
+
+5. Show address balance
+`$balance sif1lj3rsayj4xtrhp2e3elv4nf7lazxty272zqegr`
