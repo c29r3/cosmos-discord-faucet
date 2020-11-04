@@ -1,0 +1,11 @@
+[Unit]
+Description="Discord faucet bot"
+
+[Service]
+User=root
+ExecStart=/root/sifchain-faucet-bot/venv/bin/python3 discord_faucet_bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
