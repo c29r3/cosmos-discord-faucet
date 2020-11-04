@@ -89,13 +89,15 @@ async def on_message(message):
         print(requester.name, "status request")
         try:
             s = await api.get_node_status(session)
+            seq, acc_num, balance = await api.get_address_info(session, FAUCET_ADDRESS)
             if "node_info" in str(s) and "error" not in str(s):
                 s = f'```' \
-                         f'Moniker:      {s["result"]["node_info"]["moniker"]}\n' \
-                         f'Address:      {FAUCET_ADDRESS}\n' \
-                         f'Syncs?:       {s["result"]["sync_info"]["catching_up"]}\n' \
-                         f'Last block:   {s["result"]["sync_info"]["latest_block_height"]}\n' \
-                         f'Voting power: {s["result"]["validator_info"]["voting_power"]}\n```'
+                         f'Moniker:       {s["result"]["node_info"]["moniker"]}\n' \
+                         f'Address:       {FAUCET_ADDRESS}\n' \
+                         f'Faucet balance:{float(balance / decimal):.5f}\n' \
+                         f'Syncs?:        {s["result"]["sync_info"]["catching_up"]}\n' \
+                         f'Last block:    {s["result"]["sync_info"]["latest_block_height"]}\n' \
+                         f'Voting power:  {s["result"]["validator_info"]["voting_power"]}\n```'
                 await message.channel.send(s)
 
         except Exception as statusErr:
@@ -162,10 +164,10 @@ async def on_message(message):
             raw_log_ = await api.get_transaction_info(session, transaction["txhash"])
             logger.info(f'Transaction result:\n{transaction}\n{raw_log_}')
             if 'error' not in str(transaction):
-                await channel.send(f'{requester.mention}, $tx_info `{EXPLORER_URL}{transaction["txhash"]}\n`')
+                await channel.send(f'{requester.mention}, `$tx_info {EXPLORER_URL}{transaction["txhash"]}\n`')
                 print(transaction)
 
-            if "error" in str(transaction) or 'raw_log' in str(raw_log_):
+            if "error" in str(transaction) or 'insuffic' in str(raw_log_):
                 await channel.send(f'{requester.mention}, {raw_log_["raw_log"]}')
             now = datetime.datetime.now()
             await save_transaction_statistics(f'{transaction};{now.strftime("%Y-%m-%d %H:%M:%S")}')
