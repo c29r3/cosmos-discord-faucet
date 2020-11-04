@@ -3,7 +3,7 @@ Description="Discord faucet bot"
 
 [Service]
 User=root
-ExecStart=/root/sifchain-faucet-bot/venv/bin/python3 discord_faucet_bot.py
+ExecStart=/root/discord-faucet-bot.service/venv/bin/python3 discord_faucet_bot.py
 Restart=always
 RestartSec=5
 
