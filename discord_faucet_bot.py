@@ -162,9 +162,10 @@ async def on_message(message):
 
             seq, acc_num, balance = await api.get_address_info(session, FAUCET_ADDRESS)
             if float(balance / 1e6) < float(AMOUNT_TO_SEND / 1e6):
-                await channel.send(f'{requester.mention}, insufficient account funds: {balance} < {AMOUNT_TO_SEND}')
+                await channel.send(f'{requester.mention}, insufficient account funds: trying to send'
+                                   f' {AMOUNT_TO_SEND} but I only have {balance}')
                 return
-            
+
             transaction = await api.send_tx(session, requester_address)
             await sleep(1)
             raw_log_ = await api.get_transaction_info(session, transaction["txhash"])
