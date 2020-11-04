@@ -38,7 +38,8 @@ apt update \
 && apt install -y python3-pip python3-venv git tmux \
 && git clone https://github.com/c29r3/cosmos-discord-faucet.git \
 && cd cosmos-discord-faucet \
-&& python3 -m venv venv
+&& python3 -m venv venv \
+&& pip3 install -r -requirements.txt
 ```
 2. [Create Discord token](https://github.com/reactiflux/discord-irc/wiki/Creating-a-discord-bot-&-getting-a-token)  
 3. Fill in config.ini  
