@@ -1,3 +1,4 @@
+from asyncio import sleep
 import aiofiles as aiof
 import aiohttp
 import discord
@@ -122,7 +123,8 @@ async def on_message(message):
                          f'From:    {from_}\n' \
                          f'To:      {to_}\n' \
                          f'Amount:  {amount_} {denom_} ({float(amount_ / decimal):.4f})\n' \
-                         f'Fee:     {fee:.5f}```'
+                         f'Fee:     {fee:.5f}\n' \
+                         f'Raw_log: {tx["raw_log"]}```'
                     await message.channel.send(tx)
             else:
                 await message.channel.send(f'Incorrect length hash id: {len(hash_id)} instead 64')
@@ -156,14 +158,15 @@ async def on_message(message):
             print(ACTIVE_REQUESTS)
 
             transaction = await api.send_tx(session, requester_address)
-            logger.info(f'Transaction result:\n{transaction}')
-            if 'code' not in str(transaction) and 'error' not in str(transaction):
-                await message.add_reaction(emoji=APPROVE_EMOJI)
-                await channel.send(f'{requester.mention}, tx_hash: `{EXPLORER_URL}{transaction["txhash"]}`')
+            await sleep(1)
+            raw_log_ = await api.get_transaction_info(session, transaction["txhash"])
+            logger.info(f'Transaction result:\n{transaction}\n{raw_log_}')
+            if 'error' not in str(transaction):
+                await channel.send(f'{requester.mention}, $tx_info `{EXPLORER_URL}{transaction["txhash"]}\n`')
                 print(transaction)
 
-            if "insufficient fee" in str(transaction):
-                await channel.send(f'{requester.mention}, {transaction["raw_log"]}')
+            if "error" in str(transaction) or 'raw_log' in str(raw_log_):
+                await channel.send(f'{requester.mention}, {raw_log_["raw_log"]}')
             now = datetime.datetime.now()
             await save_transaction_statistics(f'{transaction};{now.strftime("%Y-%m-%d %H:%M:%S")}')
             await session.close()
