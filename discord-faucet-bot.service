@@ -3,7 +3,8 @@ Description="Discord faucet bot"
 
 [Service]
 User=root
-ExecStart=/root/discord-faucet-bot/venv/bin/python3 discord_faucet_bot.py
+WorkingDirectory=/root/cosmos-discord-faucet
+ExecStart=/root/cosmos-discord-faucet/venv/bin/python3 discord_faucet_bot.py
 Restart=always
 RestartSec=5
 
