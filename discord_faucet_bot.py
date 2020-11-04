@@ -37,6 +37,7 @@ if EXPLORER_URL != "":
 REQUEST_TIMEOUT    = int(c["FAUCET"]["request_timeout"])
 TOKEN              = str(c["FAUCET"]["discord_bot_token"])
 LISTENING_CHANNELS = list(c["FAUCET"]["channels_to_listen"].split(","))
+AMOUNT_TO_SEND     = int(c["TX"]["amount_to_send"])
 
 
 APPROVE_EMOJI = "✅"
@@ -159,10 +160,16 @@ async def on_message(message):
                 "next_request": message_timestamp + REQUEST_TIMEOUT}
             print(ACTIVE_REQUESTS)
 
+            seq, acc_num, balance = await api.get_address_info(session, FAUCET_ADDRESS)
+            if float(balance / 1e6) < float(AMOUNT_TO_SEND / 1e6):
+                await channel.send(f'{requester.mention}, insufficient account funds: {balance} < {AMOUNT_TO_SEND}')
+                return
+            
             transaction = await api.send_tx(session, requester_address)
             await sleep(1)
             raw_log_ = await api.get_transaction_info(session, transaction["txhash"])
             logger.info(f'Transaction result:\n{transaction}\n{raw_log_}')
+
             if 'error' not in str(transaction):
                 await channel.send(f'{requester.mention}, `$tx_info {EXPLORER_URL}{transaction["txhash"]}\n`')
                 print(transaction)
