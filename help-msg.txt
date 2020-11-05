@@ -2,9 +2,6 @@
 1. Request coins through the faucet
 `$request sif1lj3rsayj4xtrhp2e3elv4nf7lazxty272zqegr`
 
-Transaction status explanation:
-✅ - mean bot send transaction to your address
-
 2. Displays the current status of the node where faucet is running
 `$faucet_status`
 
