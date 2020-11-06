@@ -164,7 +164,7 @@ async def on_message(message):
                 print(transaction)
 
             else:
-                await channel.send(f'{requester.mention}, Error:{transaction["raw_log"]}\n'
+                await channel.send(f'{requester.mention}, Error:{transaction}\n'
                                    f'Try making another one request')
                 del ACTIVE_REQUESTS[requester.id]
 
