@@ -25,9 +25,10 @@ c.read("config.ini")
 
 VERBOSE_MODE       = str(c["DEFAULT"]["verbose"])
 BECH32_HRP         = str(c["CHAIN"]["BECH32_HRP"])
-DENOMINATION      = str(c["CHAIN"]["denomination"])
-FAUCET_SEED       = str(c["FAUCET"]["seed"])
-FAUCET_PRIVKEY    = str(c["FAUCET"]["private_key"])
+DENOMINATION_LST   = c["TX"]["denomination_list"].split(",")
+AMOUNT_TO_SEND_LST = c["TX"]["amount_to_send"].split(",")
+FAUCET_SEED        = str(c["FAUCET"]["seed"])
+FAUCET_PRIVKEY     = str(c["FAUCET"]["private_key"])
 if FAUCET_PRIVKEY == "":
     FAUCET_PRIVKEY = str(seed_to_privkey(FAUCET_SEED).hex())
 FAUCET_ADDRESS     = str(privkey_to_address(bytes.fromhex(FAUCET_PRIVKEY), hrp=BECH32_HRP))
@@ -37,7 +38,6 @@ if EXPLORER_URL != "":
 REQUEST_TIMEOUT    = int(c["FAUCET"]["request_timeout"])
 TOKEN              = str(c["FAUCET"]["discord_bot_token"])
 LISTENING_CHANNELS = list(c["FAUCET"]["channels_to_listen"].split(","))
-AMOUNT_TO_SEND     = int(c["TX"]["amount_to_send"])
 
 
 APPROVE_EMOJI = "✅"
@@ -75,12 +75,9 @@ async def on_message(message):
     if message.content.startswith('$balance'):
         address = str(message.content).replace("$balance", "").replace(" ", "").lower()
         if str(address[:3]) == BECH32_HRP and len(address) == 42:
-            seq, acc_num, balance = await api.get_address_info(session, address)
-            if "error" in [str(seq), str(acc_num), str(balance)]:
-                await message.channel.send(f'{message.author.mention} can\'t get balance')
-            else:
-                await message.channel.send(f'{message.author.mention}, {str(balance)} {DENOMINATION}'
-                                           f' ({float(balance / decimal)})')
+            seq, acc_num, coins = await api.get_address_info(session, address)
+            await message.channel.send(f'{message.author.mention}\n'
+                                       f'{api.coins_dict_to_string(coins)}')
 
     if message.content.startswith('$help'):
         await message.channel.send(help_msg)
@@ -90,15 +87,15 @@ async def on_message(message):
         print(requester.name, "status request")
         try:
             s = await api.get_node_status(session)
-            seq, acc_num, balance = await api.get_address_info(session, FAUCET_ADDRESS)
+            seq, acc_num, coins = await api.get_address_info(session, FAUCET_ADDRESS)
             if "node_info" in str(s) and "error" not in str(s):
                 s = f'```' \
                          f'Moniker:       {s["result"]["node_info"]["moniker"]}\n' \
                          f'Address:       {FAUCET_ADDRESS}\n' \
-                         f'Faucet balance:{float(balance / decimal):.5f}\n' \
                          f'Syncs?:        {s["result"]["sync_info"]["catching_up"]}\n' \
                          f'Last block:    {s["result"]["sync_info"]["latest_block_height"]}\n' \
-                         f'Voting power:  {s["result"]["validator_info"]["voting_power"]}\n```'
+                         f'Voting power:  {s["result"]["validator_info"]["voting_power"]}\n' \
+                         f'Faucet balance:\n{api.coins_dict_to_string(coins)}```'
                 await message.channel.send(s)
 
         except Exception as statusErr:
@@ -118,16 +115,14 @@ async def on_message(message):
                 if "amount" and "fee" in str(tx):
                     from_   = tx["tx"]["value"]["msg"][0]["value"]["from_address"]
                     to_     = tx["tx"]["value"]["msg"][0]["value"]["to_address"]
-                    amount_ = int(tx["tx"]["value"]["msg"][0]["value"]["amount"][0]["amount"])
-                    denom_  = tx["tx"]["value"]["msg"][0]["value"]["amount"][0]["denom"]
-                    fee     = decimal / float(int(tx["tx"]["value"]["fee"]["amount"][0]["amount"]) * int(tx["gas_used"]))
+                    sended_coins = '\n'
+                    for tx_ in tx["tx"]["value"]["msg"]:
+                        sended_coins = sended_coins + f'{tx_["value"]["amount"][0]["denom"]}: {tx_["value"]["amount"][0]["amount"]}\n'
 
                     tx = f'```' \
                          f'From:    {from_}\n' \
                          f'To:      {to_}\n' \
-                         f'Amount:  {amount_} {denom_} ({float(amount_ / decimal):.4f})\n' \
-                         f'Fee:     {fee:.5f}\n' \
-                         f'Raw_log: {tx["raw_log"]}```'
+                         f'Amount:  {sended_coins}```'
                     await message.channel.send(tx)
             else:
                 await message.channel.send(f'Incorrect length hash id: {len(hash_id)} instead 64')
@@ -160,23 +155,19 @@ async def on_message(message):
                 "next_request": message_timestamp + REQUEST_TIMEOUT}
             print(ACTIVE_REQUESTS)
 
-            seq, acc_num, balance = await api.get_address_info(session, FAUCET_ADDRESS)
-            if float(balance / 1e6) < float(AMOUNT_TO_SEND / 1e6):
-                await channel.send(f'{requester.mention}, insufficient account funds: trying to send'
-                                   f' {AMOUNT_TO_SEND} but I only have {balance}')
-                return
+            transaction = await api.send_tx(session, recipient=requester_address,
+                                            denom_lst=DENOMINATION_LST, amount=AMOUNT_TO_SEND_LST)
+            logger.info(f'Transaction result:\n{transaction}')
 
-            transaction = await api.send_tx(session, requester_address)
-            await sleep(1)
-            raw_log_ = await api.get_transaction_info(session, transaction["txhash"])
-            logger.info(f'Transaction result:\n{transaction}\n{raw_log_}')
-
-            if 'error' not in str(transaction):
+            if 'code' not in str(transaction):
                 await channel.send(f'{requester.mention}, `$tx_info {EXPLORER_URL}{transaction["txhash"]}\n`')
                 print(transaction)
 
-            if "error" in str(transaction) or 'insuffic' in str(raw_log_):
-                await channel.send(f'{requester.mention}, {raw_log_["raw_log"]}')
+            else:
+                await channel.send(f'{requester.mention}, Error:{transaction["raw_log"]}\n'
+                                   f'Try making another one request')
+                del ACTIVE_REQUESTS[requester.id]
+
             now = datetime.datetime.now()
             await save_transaction_statistics(f'{transaction};{now.strftime("%Y-%m-%d %H:%M:%S")}')
             await session.close()
