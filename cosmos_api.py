@@ -5,22 +5,33 @@ c = configparser.ConfigParser()
 c.read("config.ini")
 
 # Load data from config
-VERBOSE_MODE      = str(c["DEFAULT"]["verbose"])
-REST_PROVIDER     = str(c["REST"]["provider"])
-RPC_PROVIDER      = str(c["RPC"]["provider"])
-CHAIN_ID          = str(c["CHAIN"]["id"])
-DENOMINATION      = str(c["CHAIN"]["denomination"])
-BECH32_HRP        = str(c["CHAIN"]["BECH32_HRP"])
-GAS_PRICE         = int(c["TX"]["gas_price"])
-GAS_LIMIT         = int(c["TX"]["gas_limit"])
-AMOUNT_TO_SEND    = int(c["TX"]["amount_to_send"])
-FAUCET_PRIVKEY    = str(c["FAUCET"]["private_key"])
-FAUCET_SEED       = str(c["FAUCET"]["seed"])
+VERBOSE_MODE          = str(c["DEFAULT"]["verbose"])
+REST_PROVIDER         = str(c["REST"]["provider"])
+MAIN_DENOM            = str(c["CHAIN"]["denomination"])
+RPC_PROVIDER          = str(c["RPC"]["provider"])
+CHAIN_ID              = str(c["CHAIN"]["id"])
+BECH32_HRP            = str(c["CHAIN"]["BECH32_HRP"])
+GAS_PRICE             = int(c["TX"]["gas_price"])
+GAS_LIMIT             = int(c["TX"]["gas_limit"])
+FAUCET_PRIVKEY        = str(c["FAUCET"]["private_key"])
+FAUCET_SEED           = str(c["FAUCET"]["seed"])
 if FAUCET_PRIVKEY == "":
     FAUCET_PRIVKEY = str(seed_to_privkey(FAUCET_SEED).hex())
 
 FAUCET_ADDRESS    = str(privkey_to_address(bytes.fromhex(FAUCET_PRIVKEY), hrp=BECH32_HRP))
 EXPLORER_URL      = str(c["OPTIONAL"]["explorer_url"])
+
+
+def coins_dict_to_string(coins: dict) -> str:
+    """
+    INPUT: {'clink': '100000000000000000000', 'chot': '100000000000000000000'}
+    OUTUP: 'clink: 100000000000000.0\nchot: 100000000000000.0'
+    :param coins:
+    :return: str
+    """
+    d = '\n'.join([f'{key}: {int(value)}' for key, value in coins.items()])
+    print(d)
+    return d
 
 
 async def async_request(session, url, data: str = ""):
@@ -39,27 +50,28 @@ async def async_request(session, url, data: str = ""):
             return await resp.json()
 
     except Exception as err:
-        print(await resp.text())
         return f'error: in async_request()\n{url} {err}'
 
 
 async def get_address_info(session, addr: str):
     try:
-        """:returns sequence: int, account_number: int, balance: int"""
+        """:returns sequence: int, account_number: int, coins: dict"""
+        coins = {}
         d = await async_request(session, url=f'{REST_PROVIDER}/auth/accounts/{addr}')
-        if "amount" in str(d):
+        if "coins" in str(d):
             acc_num = int(d["result"]["value"]["account_number"])
             seq     = int(d["result"]["value"]["sequence"])
-            balance = int(d["result"]["value"]["coins"][0]["amount"])
-            return seq, acc_num, balance
+            for i in d["result"]["value"]["coins"]:
+                coins[i["denom"]] = i["amount"]
+            return seq, acc_num, coins
         else:
             print(d)
-            return 0, 0, 0
+            return 0, 0, {}
 
     except Exception as address_info_err:
         if VERBOSE_MODE == "yes":
             print(address_info_err)
-        return 0, 0, 0
+        return 0, 0, {}
 
 
 async def get_node_status(session):
@@ -68,9 +80,6 @@ async def get_node_status(session):
 
 
 async def get_transaction_info(session, trans_id_hex: str):
-    # if trans_id_hex[0:2] != "0x":
-    #     trans_id_hex = f'0x{trans_id_hex}'
-
     url = f'{REST_PROVIDER}/txs/{trans_id_hex}'
     resp = await async_request(session, url=url)
     if 'height' in str(resp):
@@ -79,11 +88,12 @@ async def get_transaction_info(session, trans_id_hex: str):
         return f"error: {trans_id_hex} not found"
 
 
-async def send_tx(session, recipient: str) -> str:
+async def send_tx(session, recipient: str, denom_lst: list, amount: list) -> str:
     url_ = f'{REST_PROVIDER}/txs'
     try:
         sequence, acc_number, balance = await get_address_info(session, FAUCET_ADDRESS)
-        txs = await gen_transaction(recipient_=recipient, sequence=sequence, account_num=acc_number)
+        txs = await gen_transaction(recipient_=recipient, sequence=sequence,
+                                    account_num=acc_number, denom=denom_lst, amount_=amount)
         pushable_tx = txs.get_pushable()
         result = async_request(session, url=url_, data=pushable_tx)
         return await result
@@ -91,17 +101,18 @@ async def send_tx(session, recipient: str) -> str:
     except Exception as reqErrs:
         if VERBOSE_MODE == "yes":
             print(f'error in send_txs() {REST_PROVIDER}: {reqErrs}')
+        return f"error: {reqErrs}"
 
 
-async def gen_transaction(recipient_: str, sequence: int, account_num: int, priv_key: str = FAUCET_PRIVKEY,
-                          gas: int = GAS_LIMIT, memo: str = "", chain_id_: str = CHAIN_ID, denom: str = DENOMINATION,
-                          amount_: int = AMOUNT_TO_SEND, fee: int = GAS_PRICE):
+async def gen_transaction(recipient_: str, sequence: int, denom: list, account_num: int, amount_: list,
+                          gas: int = GAS_LIMIT, memo: str = "", chain_id_: str = CHAIN_ID,
+                          fee: int = GAS_PRICE, priv_key: str = FAUCET_PRIVKEY):
 
     tx = Transaction(
         privkey=bytes.fromhex(priv_key),
         account_num=account_num,
         sequence=sequence,
-        fee_denom=denom,
+        fee_denom=MAIN_DENOM,
         fee=fee,
         gas=gas,
         memo=memo,
@@ -109,7 +120,12 @@ async def gen_transaction(recipient_: str, sequence: int, account_num: int, priv
         hrp=BECH32_HRP,
         sync_mode="sync"
     )
-    tx.add_transfer(recipient=recipient_, amount=amount_, denom=denom)
+    if type(denom) is list:
+        for i, den in enumerate(denom):
+            tx.add_transfer(recipient=recipient_, amount=amount_[i], denom=den)
+
+    else:
+        tx.add_transfer(recipient=recipient_, amount=amount_[0], denom=denom[0])
     return tx
 
 
@@ -117,5 +133,3 @@ def gen_keypair():
     """:returns address: str, private_key: str, seed: str"""
     new_wallet = generate_wallet(hrp=BECH32_HRP)
     return new_wallet["address"], new_wallet["private_key"].hex(), new_wallet["seed"]
-
-
