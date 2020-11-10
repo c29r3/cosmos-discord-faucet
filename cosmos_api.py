@@ -1,4 +1,5 @@
 import configparser
+from tabulate import tabulate
 from cosmospy import Transaction, generate_wallet, privkey_to_address, seed_to_privkey
 
 c = configparser.ConfigParser()
@@ -6,6 +7,7 @@ c.read("config.ini")
 
 # Load data from config
 VERBOSE_MODE          = str(c["DEFAULT"]["verbose"])
+DECIMAL               = float(c["CHAIN"]["decimal"])
 REST_PROVIDER         = str(c["REST"]["provider"])
 MAIN_DENOM            = str(c["CHAIN"]["denomination"])
 RPC_PROVIDER          = str(c["RPC"]["provider"])
@@ -22,15 +24,14 @@ FAUCET_ADDRESS    = str(privkey_to_address(bytes.fromhex(FAUCET_PRIVKEY), hrp=BE
 EXPLORER_URL      = str(c["OPTIONAL"]["explorer_url"])
 
 
-def coins_dict_to_string(coins: dict) -> str:
+def coins_dict_to_string(coins: dict, table_fmt_: str = "") -> str:
     """
-    INPUT: {'clink': '100000000000000000000', 'chot': '100000000000000000000'}
-    OUTUP: 'clink: 100000000000000.0\nchot: 100000000000000.0'
-    :param coins:
+    :param table_fmt_: grid | pipe | html
+    :param coins: {'clink': '100000000000000000000', 'chot': '100000000000000000000'}
     :return: str
     """
-    d = '\n'.join([f'{key}: {int(value)}' for key, value in coins.items()])
-    print(d)
+    # for i in coins: coins[i] = int(coins[i]) / DECIMAL
+    d = tabulate(coins.items(), tablefmt=table_fmt_)
     return d
 
 
