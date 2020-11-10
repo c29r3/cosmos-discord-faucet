@@ -25,6 +25,7 @@ c.read("config.ini")
 
 VERBOSE_MODE       = str(c["DEFAULT"]["verbose"])
 BECH32_HRP         = str(c["CHAIN"]["BECH32_HRP"])
+DECIMAL            = float(c["CHAIN"]["decimal"])
 DENOMINATION_LST   = c["TX"]["denomination_list"].split(",")
 AMOUNT_TO_SEND_LST = c["TX"]["amount_to_send"].split(",")
 FAUCET_SEED        = str(c["FAUCET"]["seed"])
@@ -39,11 +40,7 @@ REQUEST_TIMEOUT    = int(c["FAUCET"]["request_timeout"])
 TOKEN              = str(c["FAUCET"]["discord_bot_token"])
 LISTENING_CHANNELS = list(c["FAUCET"]["channels_to_listen"].split(","))
 
-
-APPROVE_EMOJI = "✅"
-REJECT_EMOJI = "🚫"
 ACTIVE_REQUESTS = {}
-decimal = 1e6
 client = discord.Client()
 
 with open("help-msg.txt", "r", encoding="utf-8") as help_file:
@@ -77,7 +74,7 @@ async def on_message(message):
         if str(address[:3]) == BECH32_HRP and len(address) == 42:
             seq, acc_num, coins = await api.get_address_info(session, address)
             await message.channel.send(f'{message.author.mention}\n'
-                                       f'{api.coins_dict_to_string(coins)}')
+                                       f'```{api.coins_dict_to_string(coins, "")}```')
 
     if message.content.startswith('$help'):
         await message.channel.send(help_msg)
@@ -95,7 +92,7 @@ async def on_message(message):
                          f'Syncs?:        {s["result"]["sync_info"]["catching_up"]}\n' \
                          f'Last block:    {s["result"]["sync_info"]["latest_block_height"]}\n' \
                          f'Voting power:  {s["result"]["validator_info"]["voting_power"]}\n' \
-                         f'Faucet balance:\n{api.coins_dict_to_string(coins)}```'
+                         f'Faucet balance:\n{api.coins_dict_to_string(coins, "")}```'
                 await message.channel.send(s)
 
         except Exception as statusErr:
@@ -129,6 +126,7 @@ async def on_message(message):
 
         except Exception as tx_infoErr:
             print(tx_infoErr)
+            await message.channel.send(f"Can't get transaction info {tx}")
 
     if message.content.startswith('$request') and message.channel.name in LISTENING_CHANNELS:
         channel = message.channel
@@ -164,7 +162,7 @@ async def on_message(message):
                 print(transaction)
 
             else:
-                await channel.send(f'{requester.mention}, Error:{transaction}\n'
+                await channel.send(f'{requester.mention}, Error: Can\'t send transaction\n'
                                    f'Try making another one request')
                 del ACTIVE_REQUESTS[requester.id]
 
