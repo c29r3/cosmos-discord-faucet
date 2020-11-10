@@ -40,6 +40,9 @@ REQUEST_TIMEOUT    = int(c["FAUCET"]["request_timeout"])
 TOKEN              = str(c["FAUCET"]["discord_bot_token"])
 LISTENING_CHANNELS = list(c["FAUCET"]["channels_to_listen"].split(","))
 
+
+APPROVE_EMOJI = "✅"
+REJECT_EMOJI = "🚫"
 ACTIVE_REQUESTS = {}
 client = discord.Client()
 
@@ -73,8 +76,12 @@ async def on_message(message):
         address = str(message.content).replace("$balance", "").replace(" ", "").lower()
         if str(address[:3]) == BECH32_HRP and len(address) == 42:
             seq, acc_num, coins = await api.get_address_info(session, address)
-            await message.channel.send(f'{message.author.mention}\n'
-                                       f'```{api.coins_dict_to_string(coins, "")}```')
+            if str(acc_num) != '0':
+                await message.channel.send(f'{message.author.mention}\n'
+                                           f'```{api.coins_dict_to_string(coins, "")}```')
+
+            else:
+                await message.channel.send(f'{message.author.mention} account is not initialized (balance is empty)')
 
     if message.content.startswith('$help'):
         await message.channel.send(help_msg)
