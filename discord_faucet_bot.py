@@ -139,6 +139,11 @@ async def on_message(message):
         channel = message.channel
         requester_address = str(message.content).replace("$request", "").replace(" ", "").lower()
 
+        if len(requester_address) != 42 or requester_address[:3] != BECH32_HRP:
+            await channel.send(f'{requester.mention}, Invalid address format `{requester_address}`\n'
+                               f'Address length must be equal 42 and the suffix must be `{BECH32_HRP}`')
+            return
+
         if requester.id in ACTIVE_REQUESTS:
             check_time = ACTIVE_REQUESTS[requester.id]["next_request"]
             if check_time > message_timestamp:
@@ -163,14 +168,15 @@ async def on_message(message):
             transaction = await api.send_tx(session, recipient=requester_address,
                                             denom_lst=DENOMINATION_LST, amount=AMOUNT_TO_SEND_LST)
             logger.info(f'Transaction result:\n{transaction}')
+            print(transaction)
 
-            if 'code' not in str(transaction):
+            if 'code' not in str(transaction) and "txhash" in str(transaction):
                 await channel.send(f'{requester.mention}, `$tx_info {EXPLORER_URL}{transaction["txhash"]}\n`')
-                print(transaction)
+
 
             else:
-                await channel.send(f'{requester.mention}, Error: Can\'t send transaction\n'
-                                   f'Try making another one request')
+                await channel.send(f'{requester.mention}, Can\'t send transaction. Try making another one request'
+                                   f'\n{transaction}')
                 del ACTIVE_REQUESTS[requester.id]
 
             now = datetime.datetime.now()
