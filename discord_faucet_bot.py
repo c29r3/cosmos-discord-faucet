@@ -129,7 +129,7 @@ async def on_message(message):
                          f'Amount:  {sended_coins}```'
                     await message.channel.send(tx)
                 else:
-                    await message.channel.send(tx)
+                    await message.channel.send(f'{requester.mention}, `{tx}`')
             else:
                 await message.channel.send(f'Incorrect length hash id: {len(hash_id)} instead 64')
 
