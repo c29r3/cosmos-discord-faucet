@@ -78,7 +78,7 @@ async def on_message(message):
             seq, acc_num, coins = await api.get_address_info(session, address)
             if str(acc_num) != '0':
                 await message.channel.send(f'{message.author.mention}\n'
-                                           f'```{api.coins_dict_to_string(coins, "")}```')
+                                           f'```{api.coins_dict_to_string(coins, "grid")}```')
 
             else:
                 await message.channel.send(f'{message.author.mention} account is not initialized (balance is empty)')
