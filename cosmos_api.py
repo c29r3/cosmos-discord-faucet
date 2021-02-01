@@ -25,13 +25,18 @@ EXPLORER_URL      = str(c["OPTIONAL"]["explorer_url"])
 
 
 def coins_dict_to_string(coins: dict, table_fmt_: str = "") -> str:
+    headers = ["Token", "Amount (wei)", "amount / decimal"]
+    hm = []
     """
     :param table_fmt_: grid | pipe | html
     :param coins: {'clink': '100000000000000000000', 'chot': '100000000000000000000'}
     :return: str
     """
-    # for i in coins: coins[i] = int(coins[i]) / DECIMAL
-    d = tabulate(coins.items(), tablefmt=table_fmt_)
+    for i in range(len(coins)):
+        hm.append([list(coins.keys())[i], list(coins.values())[i], int(list(coins.values())[i]) / DECIMAL])
+
+    print(coins)
+    d = tabulate(hm, tablefmt=table_fmt_, headers=headers)
     return d
 
 
@@ -59,6 +64,7 @@ async def get_address_info(session, addr: str):
         """:returns sequence: int, account_number: int, coins: dict"""
         coins = {}
         d = await async_request(session, url=f'{REST_PROVIDER}/auth/accounts/{addr}')
+        print(d)
         if "coins" in str(d):
             acc_num = int(d["result"]["value"]["account_number"])
             seq     = int(d["result"]["value"]["sequence"])
