@@ -33,7 +33,7 @@ def coins_dict_to_string(coins: dict, table_fmt_: str = "") -> str:
     :return: str
     """
     for i in range(len(coins)):
-        hm.append([list(coins.keys())[i], list(coins.values())[i], int(list(coins.values())[i]) / DECIMAL])
+        hm.append([list(coins.keys())[i], list(coins.values())[i], int(int(list(coins.values())[i]) / DECIMAL)])
 
     print(coins)
     d = tabulate(hm, tablefmt=table_fmt_, headers=headers)
