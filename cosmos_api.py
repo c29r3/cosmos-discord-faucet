@@ -3,7 +3,7 @@ from tabulate import tabulate
 from cosmospy import Transaction, generate_wallet, privkey_to_address, seed_to_privkey
 
 c = configparser.ConfigParser()
-c.read("config.ini")
+c.read("config.ini", encoding='utf-8')
 
 # Load data from config
 VERBOSE_MODE          = str(c["DEFAULT"]["verbose"])
@@ -33,9 +33,9 @@ def coins_dict_to_string(coins: dict, table_fmt_: str = "") -> str:
     :return: str
     """
     for i in range(len(coins)):
+        print(list(coins.values())[i], type(list(coins.values())[i]))
         hm.append([list(coins.keys())[i], list(coins.values())[i], int(int(list(coins.values())[i]) / DECIMAL)])
 
-    print(coins)
     d = tabulate(hm, tablefmt=table_fmt_, headers=headers)
     return d
 
@@ -63,14 +63,16 @@ async def get_address_info(session, addr: str):
     try:
         """:returns sequence: int, account_number: int, coins: dict"""
         coins = {}
-        d = await async_request(session, url=f'{REST_PROVIDER}/auth/accounts/{addr}')
+        d = await async_request(session, url=f'{REST_PROVIDER}/cosmos/bank/v1beta1/balances/{addr}')
+        b = await async_request(session, url=f'{REST_PROVIDER}/auth/accounts/{addr}')
         print(d)
-        if "coins" in str(d):
-            acc_num = int(d["result"]["value"]["account_number"])
-            seq     = int(d["result"]["value"]["sequence"])
-            for i in d["result"]["value"]["coins"]:
+        if "balances" in str(d):
+            acc_num = int(b["result"]["value"]["account_number"])
+            seq     = int(b["result"]["value"]["sequence"])
+            for i in d["balances"]:
                 coins[i["denom"]] = i["amount"]
             return seq, acc_num, coins
+
         else:
             print(d)
             return 0, 0, {}
@@ -89,6 +91,7 @@ async def get_node_status(session):
 async def get_transaction_info(session, trans_id_hex: str):
     url = f'{REST_PROVIDER}/txs/{trans_id_hex}'
     resp = await async_request(session, url=url)
+    print(resp)
     if 'height' in str(resp):
         return resp
     else:
