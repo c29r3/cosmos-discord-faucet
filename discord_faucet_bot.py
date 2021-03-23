@@ -74,7 +74,7 @@ async def on_message(message):
 
     if message.content.startswith('$balance'):
         address = str(message.content).replace("$balance", "").replace(" ", "").lower()
-        if str(address[:3]) == BECH32_HRP and len(address) == 42:
+        if len(address) == 44 or address[:len(BECH32_HRP)] == BECH32_HRP:
             seq, acc_num, coins = await api.get_address_info(session, address)
             if str(acc_num) != '0':
                 await message.channel.send(f'{message.author.mention}\n'
@@ -91,6 +91,7 @@ async def on_message(message):
         print(requester.name, "status request")
         try:
             s = await api.get_node_status(session)
+            print(s)
             seq, acc_num, coins = await api.get_address_info(session, FAUCET_ADDRESS)
             if "node_info" in str(s) and "error" not in str(s):
                 s = f'```' \
@@ -116,6 +117,7 @@ async def on_message(message):
             hash_id = str(message.content).replace("$tx_info", "").replace(" ", "")
             if len(hash_id) == 64:
                 tx = await api.get_transaction_info(session, hash_id)
+                print(tx)
                 if "amount" and "fee" in str(tx):
                     from_   = tx["tx"]["value"]["msg"][0]["value"]["from_address"]
                     to_     = tx["tx"]["value"]["msg"][0]["value"]["to_address"]
@@ -141,9 +143,9 @@ async def on_message(message):
         channel = message.channel
         requester_address = str(message.content).replace("$request", "").replace(" ", "").lower()
 
-        if len(requester_address) != 42 or requester_address[:3] != BECH32_HRP:
+        if len(requester_address) != 44 or requester_address[:len(BECH32_HRP)] != BECH32_HRP:
             await channel.send(f'{requester.mention}, Invalid address format `{requester_address}`\n'
-                               f'Address length must be equal 42 and the suffix must be `{BECH32_HRP}`')
+                               f'Address length must be equal {len(FAUCET_ADDRESS)} and the suffix must be `{BECH32_HRP}`')
             return
 
         if requester.id in ACTIVE_REQUESTS:
@@ -173,7 +175,7 @@ async def on_message(message):
             print(transaction)
 
             if 'code' not in str(transaction) and "txhash" in str(transaction):
-                await channel.send(f'{requester.mention}, `$tx_info {EXPLORER_URL}{transaction["txhash"]}\n`')
+                await channel.send(f'{requester.mention}, `$tx_info` {EXPLORER_URL}{transaction["txhash"]}\n')
 
 
             else:
