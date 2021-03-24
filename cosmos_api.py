@@ -35,7 +35,6 @@ def coins_dict_to_string(coins: dict, table_fmt_: str = "") -> str:
     for i in range(len(coins)):
         print(list(coins.values())[i], type(list(coins.values())[i]))
         hm.append([list(coins.keys())[i], list(coins.values())[i], int(int(list(coins.values())[i]) / DECIMAL)])
-
     d = tabulate(hm, tablefmt=table_fmt_, headers=headers)
     return d
 
@@ -68,9 +67,13 @@ async def get_address_info(session, addr: str):
         print(d)
         if "balances" in str(d):
             acc_num = int(b["result"]["value"]["account_number"])
-            seq     = int(b["result"]["value"]["sequence"])
+            try:
+                seq     = int(b["result"]["value"]["sequence"])
+            except:
+                seq = 0
             for i in d["balances"]:
                 coins[i["denom"]] = i["amount"]
+            print(coins)
             return seq, acc_num, coins
 
         else:
