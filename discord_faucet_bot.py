@@ -176,7 +176,7 @@ async def on_message(message):
 
             coins = await api.get_addr_balance(session, FAUCET_ADDRESS)
             seq, acc_num = await api.get_address_info(session, FAUCET_ADDRESS)
-            print(f'{coins=} {seq=} {acc_num=}')
+            #print(f'{coins=} {seq=} {acc_num=}')
             coins = {i: coins[i] for i in coins if int(coins[i]) > int(AMOUNT_TO_SEND_LST[0])}
 
             transaction = await api.send_tx(session, recipient=requester_address,
